@@ -41,7 +41,10 @@ class AStarPathfinder:
         Returns:
             np.array: Mapa processado.
         """
-        return None
+
+        mapa = map_array.copy()
+        mapa[mapa == 128] = 0
+        return mapa
 
     def create_potential_field(self) -> np.array:
         """
