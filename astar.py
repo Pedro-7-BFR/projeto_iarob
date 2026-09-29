@@ -82,16 +82,18 @@ class AStarPathfinder:
     def heuristic(self, a: tuple, b: tuple) -> float:
         """
         Calcula a heurística entre dois pontos.
-
-        Args:
-            a (tuple): Ponto A.
-            b (tuple): Ponto B.
-
-        Returns:
-            float: Resultado da heurística.
+        - a, b são tuplas
         """
 
-        return None
+        dx = a[0] - b[0]    # diferença nas linhas
+        dy = a[1] - b[1]    # diferença nas colunas
+
+        # considerando 8 direçõess (pode se mover na diagonal 45°):
+        # - Euclidiana (linha reta): nunca superestima com 8 direções.
+        # - Manhattan superestimaria nas diagonais (ex.: 6 contra 4,24 real).
+
+        return math.sqrt(dx**2 + dy**2)
+
 
     def find_path(self):
         """
