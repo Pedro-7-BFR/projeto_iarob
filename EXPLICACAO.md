@@ -29,3 +29,16 @@ Cada célula recebe um custo: **alto perto da parede, baixo longe dela**. O A* v
 
 ---
 
+## 3. `heuristic`: distância euclidiana
+[astar.py:82-95](astar.py#L82-L95)
+
+**8 direções:** o A* pode andar reto (custo 1) e na diagonal (custo √2). O robô não anda de lado nem de ré: ele vira até ficar de frente para o próximo ponto e anda para frente. Com 8 direções, as viradas são menores (45° em vez de 90°) e o caminho em diagonal não faz zigue-zague, então o movimento fica mais suave.
+
+**Por que euclidiana:** é a distância em linha reta, `√(dx² + dy²)`, e por isso nunca superestima o custo real com 8 direções. A Manhattan (`dx + dy`) superestimaria nas diagonais. Por exemplo, de (0,0) a (3,3) ela daria 6, enquanto o custo real é 4,24.
+
+⚠️ A heurística precisa combinar com os vizinhos do `find_path`. Se mudarem as direções, é preciso rever a heurística.
+
+**Regra da quina (para o `find_path`):** um passo diagonal de `(l, c)` para `(l+1, c+1)` só é permitido se `(l+1, c)` e `(l, c+1)` não forem obstáculo. Assim o robô não corta a quina da parede.
+
+---
+
