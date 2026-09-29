@@ -6,7 +6,7 @@ from scipy.ndimage import distance_transform_edt
 import math
 
 class AStarPathfinder:
-    def __init__(self, map_array: np.array, start: tuple, goal: tuple, wall_influence=5.0, buffer_factor=2.0):
+    def __init__(self, map_array: np.array, start: tuple, goal: tuple, wall_influence=5.0, buffer_factor=2.0, unknown_margin=3.0):
         """
         Inicializa o A* com mapa, ponto inicial, objetivo e parâmetros de influência.
 
@@ -16,11 +16,13 @@ class AStarPathfinder:
             goal (tuple): Ponto objetivo (linha, coluna).
             wall_influence (float): Peso da proximidade das paredes.
             buffer_factor (float): Escala da influência das paredes.
+            unknown_margin (float): Distância mínima (em células) que o robô mantém do desconhecido.
         """
         self.start = start
         self.goal = goal
         self.wall_influence = wall_influence
         self.buffer_factor = buffer_factor
+        self.unknown_margin = unknown_margin
         self.GOAL_REACHEABLE = False  
         
         # Prepara o mapa, expandindo suas bordas e ajustando o array.
@@ -194,7 +196,27 @@ class AStarPathfinder:
         Returns:
             list: Caminho ajustado.
         """
-        return None
+
+        # O A* planejou atravessando o desconhecido (no map_array, 128 virou 255).
+        # Aqui usamos o mapa ORIGINAL (self.map), onde o desconhecido ainda é 128,
+        # para o robô só andar no que é conhecido.
+        # Distância de cada célula até o desconhecido mais próximo
+        # (mesma função do campo potencial, mas agora o "zero" é o desconhecido).
+        dist_desconhecido = distance_transform_edt(self.map != 128)
+
+        for i, celula in enumerate(path):
+            # O desconhecido pode esconder uma parede. Se o robô parasse colado nele
+            # e ali houvesse parede, poderia bater antes de replanejar.
+            # Por isso ele para a unknown_margin células de distância; o sensor
+            # ainda enxerga à frente e revela o que tem ali.
+            if dist_desconhecido[celula] < self.unknown_margin:
+                self.GOAL_REACHEABLE = False
+                # max(i, 1): mantém pelo menos o ponto inicial, para nunca devolver lista vazia
+                return path[:max(i, 1)]
+
+        # nenhuma célula perto do desconhecido: o caminho inteiro é seguro e chega ao objetivo
+        self.GOAL_REACHEABLE = True
+        return path
 
     def simplify_path(self, path: list) -> list:
         """

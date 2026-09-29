@@ -86,3 +86,20 @@ O `find_path` não devolve o caminho, só o `came_from` (de onde viemos para che
 4. inverte a lista, que foi montada de trás para frente, para ficar **início → objetivo**.
 
 ---
+
+## 6. `know_path`: o robô só anda no conhecido
+[astar.py:189-219](astar.py#L189-L219)
+
+O A* planeja atravessando o desconhecido, mas o robô não pode andar por ali. O `know_path` percorre o caminho e **corta na primeira célula a menos de `unknown_margin` células do desconhecido**.
+
+- Usa o `self.map` (original, onde o desconhecido ainda é `128`), e não o `self.map_array` (onde virou `255`).
+- `distance_transform_edt(self.map != 128)` dá a distância de cada célula até o desconhecido, com a mesma função do campo potencial.
+- Se nenhuma célula do caminho ficar perto do desconhecido, o caminho chega ao objetivo, e `GOAL_REACHEABLE = True`.
+- Se cortou, o robô anda até perto da borda, o mapa cresce e o navegador chama o `run` de novo.
+- `path[:max(i, 1)]` mantém pelo menos o ponto inicial, para nunca devolver uma lista vazia.
+
+**Por que uma margem, e não parar colado na borda:** o desconhecido pode esconder uma parede. O campo potencial não "enxerga" paredes ali, então o caminho pode chegar colado na borda. Se o robô parasse ali e houvesse parede, poderia bater antes de replanejar. Parando a `unknown_margin` células (padrão 3), o sensor ainda enxerga à frente sem risco. O valor deve ser ajustado no robô real.
+
+Nos mapas de teste, o caminho para a ~3 células do desconhecido, e o trecho conhecido cresce do `map1` ao `map5` (37 → 216 células).
+
+---
