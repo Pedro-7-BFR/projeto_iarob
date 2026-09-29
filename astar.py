@@ -43,7 +43,7 @@ class AStarPathfinder:
         """
 
         mapa = map_array.copy()
-        mapa[mapa == 128] = 0
+        mapa[mapa == 128] = 255
         return mapa
 
     def create_potential_field(self) -> np.array:

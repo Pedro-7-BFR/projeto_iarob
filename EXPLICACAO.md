@@ -9,7 +9,18 @@
 
 No mapa, `0` é parede, `128` é desconhecido e `255` é livre. Trocamos `128` por `255`.
 
-**Por quê:** no robô real, entrar numa área desconhecida pode significar bater. É mais seguro tratá-la como parede.
+**Por quê:** o robô tem conhecimento incompleto do labirinto. Ele anda até a borda do que conhece, o sensor revela mais, e ele replaneja. Em todos os mapas de teste, o objetivo `(60, 120)` fica no desconhecido. Com `128 → 0`, o A* não encontrou caminho em nenhum dos 5 mapas. Com `128 → 255`, encontrou em todos.
+
+**Livre não significa conhecido.** Depois da conversão, `255` no `self.map_array` inclui o livre conhecido e o desconhecido. A diferença não se perde, porque o mapa original fica guardado:
+
+| Mapa | Desconhecido | Usado por | Para quê |
+|---|---|---|---|
+| `self.map_array` | `255` (livre) | `find_path` (A*) | planejar a rota até o objetivo |
+| `self.map` | `128` (original) | `know_path` | cortar o caminho onde entra no desconhecido |
+
+Assim, o A* planeja pelo desconhecido, mas o robô só anda no que é conhecido.
+
+**Diferença da docstring:** a docstring original diz "convertendo valores intermediários para obstáculos". Não seguimos isso ao pé da letra porque, com o desconhecido como obstáculo, o objetivo fica inalcançável. Além disso, o próprio template indica que o A* atravessa o desconhecido: o `know_path` existe para "remover trechos desconhecidos" do caminho, e o `run` o chama logo após o A*.
 
 ---
 
