@@ -5,7 +5,7 @@
 ---
 
 ## 1. `preprocess_map`: desconhecido vira livre (para o planejamento)
-[astar.py:34-47](astar.py#L34-L47)
+[astar.py:36-49](astar.py#L36-L49)
 
 No mapa, `0` é parede, `128` é desconhecido e `255` é livre. Trocamos `128` por `255`.
 
@@ -25,7 +25,7 @@ Assim, o A* planeja pelo desconhecido, mas o robô só anda no que é conhecido.
 ---
 
 ## 2. `create_potential_field`: custo perto das paredes
-[astar.py:49-80](astar.py#L49-L80)
+[astar.py:51-82](astar.py#L51-L82)
 
 Cada célula recebe um custo: **alto perto da parede, baixo longe dela**. O A* vai somar esse custo a cada passo e, assim, prefere o meio dos corredores.
 
@@ -41,7 +41,7 @@ Cada célula recebe um custo: **alto perto da parede, baixo longe dela**. O A* v
 ---
 
 ## 3. `heuristic`: distância euclidiana
-[astar.py:82-95](astar.py#L82-L95)
+[astar.py:84-97](astar.py#L84-L97)
 
 **8 direções:** o A* pode andar reto (custo 1) e na diagonal (custo √2). O robô não anda de lado nem de ré: ele vira até ficar de frente para o próximo ponto e anda para frente. Com 8 direções, as viradas são menores (45° em vez de 90°) e o caminho em diagonal não faz zigue-zague, então o movimento fica mais suave.
 
@@ -52,7 +52,7 @@ Cada célula recebe um custo: **alto perto da parede, baixo longe dela**. O A* v
 ---
 
 ## 4. `find_path`: o A*
-[astar.py:98-161](astar.py#L98-L161)
+[astar.py:100-162](astar.py#L100-L162)
 
 **Estruturas:**
 - `fila` (`heapq`): fila de prioridade que sempre entrega a célula de menor `f = g + h`, a mais promissora.
@@ -76,7 +76,7 @@ O A* não "anda" de célula em célula. Ele anota os vizinhos na fila, e o próx
 
 
 ## 5. `reconstruct_path`: seguir as migalhas
-[astar.py:162-185](astar.py#L162-L185)
+[astar.py:164-187](astar.py#L164-L187)
 
 O `find_path` não devolve o caminho, só o `came_from` (de onde viemos para chegar em cada célula). Para montar o caminho:
 
@@ -101,5 +101,22 @@ O A* planeja atravessando o desconhecido, mas o robô não pode andar por ali. O
 **Por que uma margem, e não parar colado na borda:** o desconhecido pode esconder uma parede. O campo potencial não "enxerga" paredes ali, então o caminho pode chegar colado na borda. Se o robô parasse ali e houvesse parede, poderia bater antes de replanejar. Parando a `unknown_margin` células (padrão 3), o sensor ainda enxerga à frente sem risco. O valor deve ser ajustado no robô real.
 
 Nos mapas de teste, o caminho para a ~3 células do desconhecido, e o trecho conhecido cresce do `map1` ao `map5` (37 → 216 células).
+
+---
+
+## 7. `simplify_path`: só os pontos de virada
+[astar.py:221-256](astar.py#L221-L256)
+
+É o último passo antes do desenho: recebe o caminho já montado e já cortado pelo `know_path`.
+
+O robô para e gira em cada ponto da lista. O caminho do A* tem centenas de pontos, a maioria seguindo na mesma direção. Num trecho reto, só precisamos do **começo e do fim**.
+
+Para cada ponto, comparamos a direção do passo que **chega** nele com a do passo que **sai** dele. Se forem diferentes, o ponto é uma **virada** e fica na lista; se forem iguais, é o meio de uma reta e sai. O início e o fim sempre ficam.
+
+**Resultado no `map5`:** 216 pontos viram 18, todas as viradas de 45°. Isso bate com os prints de "Objetivo" dos slides (p. 24-28), em que o caminho simplificado anda só em retas e diagonais.
+
+> **Por que a versão mais simples:** não sabemos se o robô consegue girar e seguir bem em ângulos quebrados. Com esta versão, ele só faz viradas de 45°, alinhadas à grade.
+>
+> **Possível melhoria:** se o robô aceitar qualquer ângulo, dá para usar uma "linha de visada", que liga direto pontos distantes do caminho quando a reta não passa por parede, pelo desconhecido nem mais perto da parede que o A*. Testamos essa versão: no `map5`, deu 15 pontos em vez de 18, com viradas menores. O andar fica mais suave, mas o código é bem maior.
 
 ---

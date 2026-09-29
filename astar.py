@@ -228,7 +228,32 @@ class AStarPathfinder:
         Returns:
             list: Caminho simplificado.
         """
-        return None
+
+        # Com 0, 1 ou 2 pontos não há o que simplificar
+        if len(path) <= 2:
+            return list(path)
+
+        # Ideia: o robô só precisa dos pontos onde ele VIRA.
+        # No meio de uma reta, ele não precisa parar, então esses pontos saem.
+        simplificado = [path[0]]   # o início sempre fica
+
+        # Passa pelos pontos do meio (o primeiro e o último sempre ficam)
+        for i in range(1, len(path) - 1):
+            # Parado no ponto i, compara duas "setas" (linha, coluna):
+            
+            # - chegando = o passo que o robô deu para chegar aqui  (anterior → atual)
+            # - saindo = o passo que ele vai dar agora  (atual → próximo)
+            # Ex.: (0, 1) é "para a direita", (1, 1) é "diagonal para baixo e direita".
+            chegando = (path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]) # calcula a seta subtraindo o ponto anterior do ponto atual
+            saindo = (path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1])
+
+            # Setas iguais: segue reto, o ponto pode sair.
+            # Setas diferentes: o robô precisa virar aqui, o ponto fica.
+            if chegando != saindo:
+                simplificado.append(path[i])
+
+        simplificado.append(path[-1])  # o fim sempre fica
+        return simplificado
 
     def plot_path(self, path: list, simplified_path: list):
         """
