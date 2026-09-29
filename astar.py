@@ -47,13 +47,37 @@ class AStarPathfinder:
         return mapa
 
     def create_potential_field(self) -> np.array:
-        """
-        Gera campo potencial com base na distância de obstáculos.
+        
+        # Gera campo potencial com base na distância de obstáculos.
 
-        Returns:
-            np.array: Campo potencial.
-        """
-        return None
+        # Cada célula do mapa recebe um custo que é alto perto das paredes e
+        # diminui conforme se afasta delas. O A* soma esse custo ao custo de
+        # cada passo, então passa a preferir caminhos pelo meio dos corredores,
+        # evitando que o robô real encoste nas bordas do labirinto.
+
+        # - wall_influence: custo máximo, aplicado em cima da parede (dist = 0).
+        #   Quanto maior, mais o A* "foge" das paredes.
+        # - buffer_factor: alcance da influência, em células. Quanto maior,
+        #   mais longe da parede o custo ainda é relevante. Se for grande demais,
+        #   passagens estreitas ficam caras e o robô pode evitá-las.
+
+        # Para cada célula, calcula a quantas células ela está da parede mais próxima.
+        # Exemplo (0 = parede, 255 = livre):
+        
+        #   map_array:          dist:
+        #   0   0   0   0       0  0  0  0
+        #   0 255 255 255       0  1  1  1
+        #   0 255 255 255       0  1  2  2
+        
+        # Colado na parede -> 1; mais para o meio -> 2; na própria parede -> 0.
+        dist = distance_transform_edt(self.map_array)
+
+
+        # Converte distância em custo usando uma exponencial decrescente
+        # (escolhida por ser suave e nunca infinita, permitindo passar em
+        # corredores estreitos). Perto da parede o custo é alto; longe, tende a zero.
+        # wall_influence = 10 | buffer_factor = 3
+        return self.wall_influence * np.exp(-dist / self.buffer_factor)
 
     def heuristic(self, a: tuple, b: tuple) -> float:
         """
