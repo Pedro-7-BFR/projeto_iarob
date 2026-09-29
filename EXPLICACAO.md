@@ -4,10 +4,10 @@
 
 ---
 
-## 1. `preprocess_map`: desconhecido vira parede
+## 1. `preprocess_map`: desconhecido vira livre (para o planejamento)
 [astar.py:34-47](astar.py#L34-L47)
 
-No mapa, `0` é parede, `128` é desconhecido e `255` é livre. Trocamos `128` por `0`.
+No mapa, `0` é parede, `128` é desconhecido e `255` é livre. Trocamos `128` por `255`.
 
 **Por quê:** no robô real, entrar numa área desconhecida pode significar bater. É mais seguro tratá-la como parede.
 
@@ -38,7 +38,28 @@ Cada célula recebe um custo: **alto perto da parede, baixo longe dela**. O A* v
 
 ⚠️ A heurística precisa combinar com os vizinhos do `find_path`. Se mudarem as direções, é preciso rever a heurística.
 
-**Regra da quina (para o `find_path`):** um passo diagonal de `(l, c)` para `(l+1, c+1)` só é permitido se `(l+1, c)` e `(l, c+1)` não forem obstáculo. Assim o robô não corta a quina da parede.
+---
+
+## 4. `find_path`: o A*
+[astar.py:98-161](astar.py#L98-L161)
+
+**Estruturas:**
+- `fila` (`heapq`): fila de prioridade que sempre entrega a célula de menor `f = g + h`, a mais promissora.
+- `g_score`: custo real para chegar em cada célula desde o início.
+- `came_from`: de qual célula viemos para chegar em cada uma (rastro usado pelo `reconstruct_path`).
+
+**Laço:** tira da fila a célula de menor `f`. Se for o objetivo, termina. Senão, testa os 8 vizinhos.
+
+**Peneira dos vizinhos** (`continue` descarta o vizinho):
+1. fora do mapa;
+2. parede;
+3. diagonal que corta quina: o passo de `(l, c)` para `(l+dl, c+dc)` só vale se `(l+dl, c)` e `(l, c+dc)` não forem parede.
+
+**Custo:** `novo_g = g_score[atual] + passo + potential_field[vizinho]`, com passo 1 (reto) ou √2 (diagonal), mais a "multa" por estar perto da parede.
+
+**Anotar:** só se o vizinho é novo ou se o caminho de agora é mais barato. Nesse caso, atualiza `g_score` e `came_from` e coloca o vizinho na fila com `f = novo_g + heuristic(vizinho, objetivo)`.
+
+O A* não "anda" de célula em célula. Ele anota os vizinhos na fila, e o próximo `atual` é sempre o de menor `f` da fila inteira. É isso que garante o caminho mais barato.
 
 ---
 

@@ -96,13 +96,65 @@ class AStarPathfinder:
 
 
     def find_path(self):
-        """
-        Executa o algoritmo A* para encontrar caminho até o objetivo.
+        
+        # Executa o algoritmo A* para encontrar caminho até o objetivo.
 
-        Returns:
-            dict: Predecessores dos nós no caminho. Se o caminho não for encontrado, retorna None.
-            tuple: O ponto final (objetivo) ou None se não encontrado.
-        """
+        fila = []
+        h = self.heuristic(self.start, self.goal)
+        heapq.heappush(fila, (h, self.start))
+
+        # heapq.heappush(fila, item) coloca um item na fila.
+        # heapq.heappop(fila) tira e devolve o menor item.
+
+        g_score = {self.start: 0}   # dicionário que guarda quanto custa chegar em cada célula mapeada até ali
+        came_from = {}  # guarda de onde cada célula veio, rastro de migalhas
+
+        direcoes = [(-1,0), (1,0), (0,-1), (0,1), # retos
+                    (-1,-1), (-1, 1), (1, -1), (1,1)] #diagonais
+
+        # tamanho do mapa (shape devolve tupla)
+        linhas, colunas = self.map_array.shape 
+
+        while fila:  # enquanto houver células para explorar
+            f, atual = heapq.heappop(fila)
+
+            if atual == self.goal:
+                return came_from, atual
+
+            for dl, dc in direcoes:
+                vizinho = (atual[0] + dl, atual[1] + dc)
+
+                # verificar se é fora do mapa
+                if not (0 <= vizinho[0] < linhas and 0 <= vizinho[1] < colunas):
+                    continue
+
+                # verificar se é parede
+                if self.map_array[vizinho] == 0:
+                    continue
+
+                passo = 1
+
+                if dl != 0 and dc != 0: # verifica se o movimento vai p/ diagonal
+                    # verifica em x
+                    passo = math.sqrt(2)
+                    raspaox = (atual[0] + dl, atual[1])
+                    raspaoy = (atual[0], atual[1] + dc)
+
+                    # verifica se os vizinhos de raspao da diagonal é parede
+                    if self.map_array[raspaox] == 0 or self.map_array[raspaoy] == 0:
+                        continue # pula pro proximo vizinho
+
+                # quanto custa chegar nesse novo vizinho
+                # - quanto custou chegar até onde ele está
+                # - quanto custa esse passo
+                # - a multa por estar proximo da parede
+                novo_g = g_score[atual] + passo + self.potential_field[vizinho]
+
+                if vizinho not in g_score or novo_g < g_score[vizinho]:
+                    g_score[vizinho] = novo_g # custo para chegar no vizinho
+                    came_from[vizinho] = atual # de onde veio, celula "pai"
+                    f = novo_g + self.heuristic(vizinho, self.goal) # custo total estimado
+                    heapq.heappush(fila, (f, vizinho)) # coloca o vizinho na fila para ser explorado depois
 
         print("Caminho não encontrado")
         return None, None
