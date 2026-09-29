@@ -4,6 +4,34 @@
 
 ---
 
+## Ordem de execução
+
+O `run` ([astar.py:285](astar.py#L285)) chama as funções nesta ordem. Cada uma recebe o resultado da anterior:
+
+| # | Função | O que faz |
+|---|---|---|
+| — | `__init__` | `preprocess_map` e `create_potential_field` preparam os mapas ao criar o objeto |
+| 1 | `find_path` | A* acha o caminho até o objetivo |
+| 2 | `reconstruct_path` | monta a lista de pontos a partir do `came_from` |
+| 3 | `know_path` | corta antes do desconhecido |
+| 4 | `simplify_path` | deixa só os pontos de virada |
+| 5 | `plot_path` | desenha |
+
+Se o `find_path` não achar o objetivo, o `run` para ali (`if final_node:`) e os passos 2 a 5 não rodam.
+
+## Dois mapas: planejar ≠ andar
+
+Definidos no `__init__` ([astar.py:29-30](astar.py#L29-L30)):
+
+| Mapa | Desconhecido (`128`) vira | Usado em | Serve para |
+|---|---|---|---|
+| `self.map_array` | livre (`255`), via `preprocess_map` | `find_path`, `create_potential_field` | **decidir para onde ir**: o A* enxerga até o objetivo, que está no desconhecido |
+| `self.map` | continua `128` (cópia do original) | `know_path` ([astar.py:205](astar.py#L205)) | **decidir até onde andar**: o robô só anda no conhecido |
+
+Com um mapa só, com o desconhecido como parede, o A* não alcança o objetivo e o robô não sai do lugar. Isso foi testado: nenhum dos 5 mapas encontrou caminho.
+
+---
+
 ## 1. `preprocess_map`: desconhecido vira livre (para o planejamento)
 [astar.py:36-49](astar.py#L36-L49)
 
