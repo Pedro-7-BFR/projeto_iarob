@@ -74,3 +74,15 @@ O A* não "anda" de célula em célula. Ele anota os vizinhos na fila, e o próx
 
 ---
 
+
+## 5. `reconstruct_path`: seguir as migalhas
+[astar.py:162-185](astar.py#L162-L185)
+
+O `find_path` não devolve o caminho, só o `came_from` (de onde viemos para chegar em cada célula). Para montar o caminho:
+
+1. começa no objetivo;
+2. pergunta ao `came_from` "de onde vim?" e anda uma célula para trás, repetindo;
+3. para quando chega no início, a única célula que não está no `came_from`;
+4. inverte a lista, que foi montada de trás para frente, para ficar **início → objetivo**.
+
+---

@@ -170,7 +170,19 @@ class AStarPathfinder:
         Returns:
             list: Lista de tuplas com caminho reconstruído.
         """
-        return None
+
+        # começa pelo objetivo e segue as "migalhas" de trás para frente
+        caminho = [current]
+
+        # o início é a única célula que não está no came_from (não veio de lugar nenhum),
+        # então o laço para quando chega nele
+        while current in came_from:
+            current = came_from[current]   # anda uma célula para trás
+            caminho.append(current)
+
+        # a lista foi montada do objetivo até o início; inverte para ficar início → objetivo
+        caminho.reverse()
+        return caminho
 
     def know_path(self, path: list) -> list:
         """
