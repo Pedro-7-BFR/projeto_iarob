@@ -6,7 +6,7 @@
 
 ## Ordem de execução
 
-O `run` ([astar.py:285](astar.py#L285)) chama as funções nesta ordem. Cada uma recebe o resultado da anterior:
+O `run` ([astar.py:359](astar.py#L359)) chama as funções nesta ordem. Cada uma recebe o resultado da anterior:
 
 | # | Função | O que faz |
 |---|---|---|
@@ -14,7 +14,7 @@ O `run` ([astar.py:285](astar.py#L285)) chama as funções nesta ordem. Cada uma
 | 1 | `find_path` | A* acha o caminho até o objetivo |
 | 2 | `reconstruct_path` | monta a lista de pontos a partir do `came_from` |
 | 3 | `know_path` | corta antes do desconhecido |
-| 4 | `simplify_path` | deixa só os pontos de virada |
+| 4 | `simplify_path` | deixa só os pontos de virada e centraliza nos vãos estreitos |
 | 5 | `plot_path` | desenha |
 
 Se o `find_path` não achar o objetivo, o `run` para ali (`if final_node:`) e os passos 2 a 5 não rodam.
@@ -26,7 +26,7 @@ Definidos no `__init__` ([astar.py:29-30](astar.py#L29-L30)):
 | Mapa | Desconhecido (`128`) vira | Usado em | Serve para |
 |---|---|---|---|
 | `self.map_array` | livre (`255`), via `preprocess_map` | `find_path`, `create_potential_field` | **decidir para onde ir**: o A* enxerga até o objetivo, que está no desconhecido |
-| `self.map` | continua `128` (cópia do original) | `know_path` ([astar.py:205](astar.py#L205)) | **decidir até onde andar**: o robô só anda no conhecido |
+| `self.map` | continua `128` (cópia do original) | `know_path` ([astar.py:211](astar.py#L211)) | **decidir até onde andar**: o robô só anda no conhecido |
 
 Com um mapa só, com o desconhecido como parede, o A* não alcança o objetivo e o robô não sai do lugar. Isso foi testado: nenhum dos 5 mapas encontrou caminho.
 
@@ -89,7 +89,7 @@ Com 5 e 2, o caminho fica um pouco mais curto e com menos paradas, mas corta mai
 ---
 
 ## 4. `find_path`: o A*
-[astar.py:100-162](astar.py#L100-L162)
+[astar.py:100-168](astar.py#L100-L168)
 
 **Estruturas:**
 - `fila` (`heapq`): fila de prioridade que sempre entrega a célula de menor `f = g + h`, a mais promissora.
@@ -101,7 +101,7 @@ Com 5 e 2, o caminho fica um pouco mais curto e com menos paradas, mas corta mai
 **Peneira dos vizinhos** (`continue` descarta o vizinho):
 1. fora do mapa;
 2. parede;
-3. diagonal que corta quina: o passo de `(l, c)` para `(l+dl, c+dc)` só vale se `(l+dl, c)` e `(l, c+dc)` não forem parede.
+3. diagonal perto de parede: o passo de `(l, c)` para `(l+dl, c+dc)` só vale se `(l+dl, c)` e `(l, c+dc)` estiverem a pelo menos 3 células (15 cm) de uma parede. No robô real, o caminho virava na diagonal colado na ponta de uma parede, e a roda prendia na quina. Perto das paredes, o robô passa a andar só reto. Isso nunca bloqueia um caminho, porque toda diagonal pode ser trocada por dois passos retos.
 
 **Custo:** `novo_g = g_score[atual] + passo + potential_field[vizinho]`, com passo 1 (reto) ou √2 (diagonal), mais a "multa" por estar perto da parede.
 
@@ -113,7 +113,7 @@ O A* não "anda" de célula em célula. Ele anota os vizinhos na fila, e o próx
 
 
 ## 5. `reconstruct_path`: seguir as migalhas
-[astar.py:164-187](astar.py#L164-L187)
+[astar.py:170-193](astar.py#L170-L193)
 
 O `find_path` não devolve o caminho, só o `came_from` (de onde viemos para chegar em cada célula). Para montar o caminho:
 
@@ -125,7 +125,7 @@ O `find_path` não devolve o caminho, só o `came_from` (de onde viemos para che
 ---
 
 ## 6. `know_path`: o robô só anda no conhecido
-[astar.py:189-219](astar.py#L189-L219)
+[astar.py:195-225](astar.py#L195-L225)
 
 O A* planeja atravessando o desconhecido, mas o robô não pode andar por ali. O `know_path` percorre o caminho e **corta na primeira célula a menos de `unknown_margin` células do desconhecido**.
 
@@ -135,14 +135,16 @@ O A* planeja atravessando o desconhecido, mas o robô não pode andar por ali. O
 - Se cortou, o robô anda até perto da borda, o mapa cresce e o navegador chama o `run` de novo.
 - `path[:max(i, 1)]` mantém pelo menos o ponto inicial, para nunca devolver uma lista vazia.
 
-**Por que uma margem, e não parar colado na borda:** o desconhecido pode esconder uma parede. O campo potencial não "enxerga" paredes ali, então o caminho pode chegar colado na borda. Se o robô parasse ali e houvesse parede, poderia bater antes de replanejar. Parando a `unknown_margin` células (padrão 3), o sensor ainda enxerga à frente sem risco. O valor deve ser ajustado no robô real.
+**Por que uma margem, e não parar colado na borda:** o desconhecido pode esconder uma parede. O campo potencial não "enxerga" paredes ali, então o caminho pode chegar colado na borda. Se o robô parasse ali e houvesse parede, poderia bater antes de replanejar. Parando a `unknown_margin` células (padrão 2), o sensor ainda enxerga à frente sem risco.
 
-Nos mapas de teste, o caminho para a ~3 células do desconhecido, e o trecho conhecido cresce do `map1` ao `map5` (37 → 216 células).
+**Por que 2, e não 3:** as células logo atrás de uma parede ficam desconhecidas, porque o laser não atravessa a parede. Com 3, ao contornar a ponta de uma parede o caminho ficava perto dessa "sombra" e era cortado logo no começo, e o robô ficava parado. Com 2, isso não acontece.
+
+Nos mapas de teste, o caminho para a ~2 células do desconhecido, e o trecho conhecido cresce do `map1` ao `map5`.
 
 ---
 
 ## 7. `simplify_path`: só os pontos de virada
-[astar.py:221-256](astar.py#L221-L256)
+[astar.py:227-262](astar.py#L227-L262)
 
 É o último passo antes do desenho: recebe o caminho já montado e já cortado pelo `know_path`.
 
@@ -150,10 +152,21 @@ O robô para e gira em cada ponto da lista. O caminho do A* tem centenas de pont
 
 Para cada ponto, comparamos a direção do passo que **chega** nele com a do passo que **sai** dele. Se forem diferentes, o ponto é uma **virada** e fica na lista; se forem iguais, é o meio de uma reta e sai. O início e o fim sempre ficam.
 
+No final, os pontos passam pelo `centralizar_nos_vaos` (seção 8).
+
 **Resultado no `map5`:** 216 pontos viram 18, todas as viradas de 45°. Isso bate com os prints de "Objetivo" dos slides (p. 24-28), em que o caminho simplificado anda só em retas e diagonais.
 
 > **Por que a versão mais simples:** não sabemos se o robô consegue girar e seguir bem em ângulos quebrados. Com esta versão, ele só faz viradas de 45°, alinhadas à grade.
 >
 > **Possível melhoria:** se o robô aceitar qualquer ângulo, dá para usar uma "linha de visada", que liga direto pontos distantes do caminho quando a reta não passa por parede, pelo desconhecido nem mais perto da parede que o A*. Testamos essa versão: no `map5`, deu 15 pontos em vez de 18, com viradas menores. O andar fica mais suave, mas o código é bem maior.
+
+---
+
+## 8. `centralizar_nos_vaos`: reta no meio dos vãos estreitos
+[astar.py:264-330](astar.py#L264-L330)
+
+O caminho só passa pelo centro de uma célula (5 cm). Se o meio de um vão cai entre duas células, a reta fica até 2,5 cm fora do centro. No labirinto real, o vão mais estreito tem 26 cm e o robô ~17 cm, então sobram só ~4,5 cm de cada lado, e esses 2,5 cm faziam ele encostar.
+
+Para cada trecho reto que passa por um vão de até 7 células (35 cm), a função desloca a reta até meia célula para o meio exato do vão. Por isso os pontos podem sair com casa decimal, como `(24.5, 16.0)`. Nos outros lugares, os pontos não mudam.
 
 ---
