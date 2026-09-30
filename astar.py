@@ -6,7 +6,7 @@ from scipy.ndimage import distance_transform_edt
 import math
 
 class AStarPathfinder:
-    def __init__(self, map_array: np.array, start: tuple, goal: tuple, wall_influence=5.0, buffer_factor=2.0, unknown_margin=3.0):
+    def __init__(self, map_array: np.array, start: tuple, goal: tuple, wall_influence=10.0, buffer_factor=3.0, unknown_margin=2.0):
         """
         Inicializa o A* com mapa, ponto inicial, objetivo e parâmetros de influência.
 
@@ -115,7 +115,10 @@ class AStarPathfinder:
                     (-1,-1), (-1, 1), (1, -1), (1,1)] #diagonais
 
         # tamanho do mapa (shape devolve tupla)
-        linhas, colunas = self.map_array.shape 
+        linhas, colunas = self.map_array.shape
+
+        # distância de cada célula até a parede mais próxima (usada na regra da quina)
+        dist_parede = distance_transform_edt(self.map_array != 0)
 
         while fila:  # enquanto houver células para explorar
             f, atual = heapq.heappop(fila)
@@ -142,8 +145,11 @@ class AStarPathfinder:
                     raspaox = (atual[0] + dl, atual[1])
                     raspaoy = (atual[0], atual[1] + dc)
 
-                    # verifica se os vizinhos de raspao da diagonal é parede
-                    if self.map_array[raspaox] == 0 or self.map_array[raspaoy] == 0:
+                    # verifica se os vizinhos de raspao da diagonal estão perto da parede.
+                    # Não basta não ser parede: a menos de 3 células (15 cm) de uma parede,
+                    # o robô só anda reto. Assim ele não vira na diagonal colado numa quina
+                    # (no robô real, a roda prendia na ponta da parede na saída estreita).
+                    if dist_parede[raspaox] < 3 or dist_parede[raspaoy] < 3:
                         continue # pula pro proximo vizinho
 
                 # quanto custa chegar nesse novo vizinho
@@ -253,7 +259,75 @@ class AStarPathfinder:
                 simplificado.append(path[i])
 
         simplificado.append(path[-1])  # o fim sempre fica
-        return simplificado
+        return self.centralizar_nos_vaos(simplificado)
+
+    def centralizar_nos_vaos(self, pontos: list, largura_max=7) -> list:
+        """
+        Nos vãos estreitos, desloca o trecho reto para o MEIO EXATO do vão.
+
+        O caminho só passa no centro de uma célula (5 cm). Se o meio do vão cai entre
+        duas células, a reta fica até meia célula (2,5 cm) fora do centro, e com o robô
+        real (~17 cm de largura) num vão de ~26 cm isso bastava para encostar.
+        Aqui, para cada trecho reto (horizontal ou vertical) que passa por um vão de até
+        `largura_max` células, a reta inteira é deslocada até meia célula para o meio.
+        Nos outros lugares, os pontos não mudam.
+
+        Returns:
+            list: Pontos (podem ter meia célula, ex.: (32.5, 15)).
+        """
+        pontos = [tuple(float(v) for v in p) for p in pontos]
+        livre = self.map_array != 0
+        linhas, colunas = livre.shape
+
+        def livres_ate_parede(celula, passo):
+            # conta quantas células livres existem a partir da célula, na direção 'passo'
+            n = 0
+            l, c = celula
+            for _ in range(largura_max):
+                l, c = l + passo[0], c + passo[1]
+                if not (0 <= l < linhas and 0 <= c < colunas) or not livre[l, c]:
+                    return n
+                n += 1
+            return None   # não achou parede perto: não é vão estreito
+
+        deslocamento = [(0.0, 0.0)] * len(pontos)
+        entrada_vao = None   # ponto extra, se o vão estiver logo no primeiro trecho
+        for i in range(len(pontos) - 1):
+            (l0, c0), (l1, c1) = pontos[i], pontos[i + 1]
+            if l0 != l1 and c0 != c1:
+                continue   # só trechos retos (perto das paredes o caminho já é reto)
+            vertical = (c0 == c1)
+            normal = (0, 1) if vertical else (1, 0)   # direção perpendicular ao trecho
+
+            # acha a célula mais apertada do trecho e o deslocamento até o meio do vão
+            n = int(max(abs(l1 - l0), abs(c1 - c0)))
+            mais_estreito = None
+            for k in range(n + 1):
+                cel = (int(round(l0 + (l1 - l0) * k / max(n, 1))), int(round(c0 + (c1 - c0) * k / max(n, 1))))
+                a = livres_ate_parede(cel, normal)
+                b = livres_ate_parede(cel, (-normal[0], -normal[1]))
+                if a is None or b is None:
+                    continue
+                largura = a + b + 1
+                if largura <= largura_max and (mais_estreito is None or largura < mais_estreito[0]):
+                    mais_estreito = (largura, (a - b) / 2, cel)
+
+            if mais_estreito and mais_estreito[1] != 0:
+                ajuste = max(-0.5, min(0.5, mais_estreito[1]))   # no máximo meia célula
+                for j in (i, i + 1):
+                    if j == 0:
+                        # o ponto inicial é onde o robô está: não mexe nele, mas acrescenta
+                        # um ponto na parte mais apertada do vão, já no meio
+                        cel = mais_estreito[2]
+                        entrada_vao = (cel[0] + normal[0] * ajuste, cel[1] + normal[1] * ajuste)
+                        continue
+                    deslocamento[j] = (deslocamento[j][0] + normal[0] * ajuste,
+                                       deslocamento[j][1] + normal[1] * ajuste)
+
+        resultado = [(p[0] + d[0], p[1] + d[1]) for p, d in zip(pontos, deslocamento)]
+        if entrada_vao is not None:
+            resultado.insert(1, entrada_vao)
+        return resultado
 
     def plot_path(self, path: list, simplified_path: list):
         """
