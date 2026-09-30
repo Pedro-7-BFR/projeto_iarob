@@ -66,6 +66,15 @@ Cada célula recebe um custo: **alto perto da parede, baixo longe dela**. O A* v
 
 ⚠️ Se o custo das paredes for alto demais em relação ao custo de andar (principalmente `wall_influence`), o A* pode preferir um desvio longo a uma passagem estreita. Como o custo nunca é infinito, se não houver outra rota ele ainda passa pelo estreito.
 
+**Valores padrão: `wall_influence = 10`, `buffer_factor = 3`.** O template vinha com 5 e 2. Trocamos porque todos os testes foram feitos com 10 e 3, e o navegador pode criar a classe sem passar esses valores. Comparando nos mapas do professor:
+
+| | Menor distância da parede | Pontos de virada |
+|---|---|---|
+| 10 e 3 | 6 a 8 células | um pouco mais |
+| 5 e 2 | 4 a 8 células | um pouco menos |
+
+Com 5 e 2, o caminho fica um pouco mais curto e com menos paradas, mas corta mais perto da ponta das paredes nas curvas. Priorizamos a segurança, porque no robô real ele escorrega e erra a posição alguns centímetros.
+
 ---
 
 ## 3. `heuristic`: distância euclidiana

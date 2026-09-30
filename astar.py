@@ -6,7 +6,7 @@ from scipy.ndimage import distance_transform_edt
 import math
 
 class AStarPathfinder:
-    def __init__(self, map_array: np.array, start: tuple, goal: tuple, wall_influence=5.0, buffer_factor=2.0, unknown_margin=3.0):
+    def __init__(self, map_array: np.array, start: tuple, goal: tuple, wall_influence=10.0, buffer_factor=3.0, unknown_margin=3.0):
         """
         Inicializa o A* com mapa, ponto inicial, objetivo e parâmetros de influência.
 
